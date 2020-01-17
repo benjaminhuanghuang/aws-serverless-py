@@ -1,12 +1,19 @@
 from chalice import Chalice, NotFoundError, Response, CORSConfig, AuthResponse, AuthRoute
+from chalice import CognitoUserPoolAuthorizer
+
 from basicauth import decode
 
 
 app = Chalice(app_name='todo-app')
 app.debug = True
 
+# provider_arns is the UserPoolArn from outputs of the stack created by conginito.yml
+cognito_authorizer = CognitoUserPoolAuthorizer(
+    'TodoUserPool', header='Authorization',
+    provider_arns = ["arn:aws:cognito-idp:us-west-2:173116748583:userpool/us-west-2_FbuRjjjZD"]
+)
 cors_config = CORSConfig(
-  allow_origin="https://www.example.com"
+  allow_origin="*"
 )
 
 
@@ -42,8 +49,11 @@ def health_check():
     # Customize response
     return Response(status_code=200, body="ok\n", headers={'Content-Type': 'text/plain'})
 
-@app.route('/todo')
+@app.route('/todo', authorizer=cognito_authorizer, cors=cors_config)
 def todos():
+     
+    print("Current user is {}".format(current_user()))
+
     items = [ v for k, v in TODO_ITEMS.items() ]
 
     params = app.current_request.query_params
@@ -85,6 +95,12 @@ def add_todo():
     new_id = str(len(TODO_ITEMS) + 1)
     TODO_ITEMS[new_id] = todo
     return todo
+
+
+def current_user():
+    auth_context = app.current_request.context.get('authorizer', {})
+    return auth_context.get('claims', {}).get('cognito:username')
+
 
 # The view function above will return {"hello": "world"}
 # whenever you make an HTTP GET request to '/'.
