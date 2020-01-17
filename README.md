@@ -54,3 +54,10 @@ Check log
 ```
   chalice logs --stage dev
 ```
+
+
+## Test index.html
+Start a http server 
+```
+  python -m http.server
+```

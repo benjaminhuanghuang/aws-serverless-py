@@ -1,0 +1,19 @@
+<script type="text/javascript">
+  url = "https://g6nykq6puf.execute-api.us-west-2.amazonaws.com/api/todo"
+  todo = { 'item': 'go shopping' }
+
+  fetch(url,
+    {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(todo)
+    }).then(data => {
+      console.log("received", data)
+    },
+      err => {
+        console.log("error", err)
+      }
+    );
+</script>

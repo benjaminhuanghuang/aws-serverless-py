@@ -1,6 +1,13 @@
-from chalice import Chalice
+from chalice import Chalice, NotFoundError, Response, CORSConfig, AuthResponse, AuthRoute
+from basicauth import decode
+
 
 app = Chalice(app_name='todo-app')
+app.debug = True
+
+cors_config = CORSConfig(
+  allow_origin="https://www.example.com"
+)
 
 
 TODO_ITEMS = {
@@ -12,10 +19,28 @@ TODO_ITEMS = {
     }
 }
 
-@app.route('/')
+@app.authorizer()
+def basic_auth(auth_request):
+    username, password = decode(auth_request.token)
+
+    if username == password:
+        context = {'stripe_user_id': '1234', 'is_admin': True }
+        return AuthResponse(routes=['/*'], principal_id=username, context=context)
+    return AuthResponse(routes=[], principal_id=None)
+        
+
+@app.route('/', authorizer=basic_auth)
 def index():
+    # read context
+    context = app.current_request.context['authorizer']
+
     print("Calling our index route")
-    return {'hello': 'serverless world'}
+    return {'hello': 'serverless world', 'context' : context }
+
+@app.route('/health')
+def health_check():
+    # Customize response
+    return Response(status_code=200, body="ok\n", headers={'Content-Type': 'text/plain'})
 
 @app.route('/todo')
 def todos():
@@ -32,7 +57,9 @@ def todos():
 
 @app.route('/todo/{todo_id}')
 def get_todo(todo_id):
-    return TODO_ITEMS[todo_id]
+    if todo_id in TODO_ITEMS:
+        return TODO_ITEMS[todo_id]
+    raise NotFoundError
 
 @app.route('/todo/{todo_id}', methods=["DELETE"])
 def delete_todo(todo_id):
@@ -52,7 +79,7 @@ def update_todo(todo_id):
 def introspect():
     return app.current_request.to_dict()
 
-@app.route('/todo', methods=["POST"])
+@app.route('/todo', methods=["POST"], cors=cors_config)
 def add_todo():
     todo = app.current_request.json_body
     new_id = str(len(TODO_ITEMS) + 1)
