@@ -2,11 +2,12 @@ from chalice import Chalice, NotFoundError, Response, CORSConfig, AuthResponse, 
 from chalice import CognitoUserPoolAuthorizer
 
 from basicauth import decode
-
+import boto3
 
 app = Chalice(app_name='todo-app')
 app.debug = True
 
+dynamodb = boto3.client('dynamodb')
 # provider_arns is the UserPoolArn from outputs of the stack created by conginito.yml
 cognito_authorizer = CognitoUserPoolAuthorizer(
     'TodoUserPool', header='Authorization',
@@ -67,9 +68,8 @@ def todos():
 
 @app.route('/todo/{todo_id}')
 def get_todo(todo_id):
-    if todo_id in TODO_ITEMS:
-        return TODO_ITEMS[todo_id]
-    raise NotFoundError
+    response = dynamodb.get_item(TableName="chalice-demo", Key={"task_id" : {"S": "task_id"}})
+    return response
 
 @app.route('/todo/{todo_id}', methods=["DELETE"])
 def delete_todo(todo_id):
@@ -79,6 +79,8 @@ def delete_todo(todo_id):
 
 @app.route('/todo/{todo_id}', methods=["POST", "PUT"])
 def update_todo(todo_id):
+    dynamodb.put_item(TableName='chalice-demo', Item={})
+
     if app.current_request.method == "POST":
         TODO_ITEMS[todo_id].update(app.current_request.json_body)
     else:
